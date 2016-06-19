@@ -1,0 +1,4 @@
+extract boost 1.61 to C:\Work\afp-cpp-server\3rdParty\boost_1_61_0
+cd C:\Work\afp-cpp-server\3rdParty\boost_1_61_0
+bootstrap.bat
+.\b2

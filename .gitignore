@@ -1,0 +1,11 @@
+/3rdParty
+/Debug
+/Release
+*/Debug
+*/Release
+/ipch
+/.vs
+*/bin
+*/obj
+*.opendb
+*.db
