@@ -1,0 +1,16 @@
+<config>
+  <portfolio id="P1">
+    <stock stockid="VOD LN" count="1000" />
+    <stock stockid="BP LN" count="950" />
+    <stock stockid="BMW GY" count="1050" />
+  </portfolio>
+  <portfolio id="P2">
+    <stock stockid="BP LN" count="50" />
+    <stock stockid="BMW GY" count="150" />
+  </portfolio>
+  <marketdata id="EUR" iscurrency="true" username="user1" password="pass1" />
+  <marketdata id="GBP" iscurrency="true" username="user1" password="pass1" />
+  <marketdata id="VOD LN" iscurrency="false" currencyid="GBP" username="user2" password="pass2" />
+  <marketdata id="BP LN" iscurrency="false" currencyid="GBP" username="user2" password="pass2" />
+  <marketdata id="BMW GY" iscurrency="false" currencyid="EUR" username="user2" password="pass2" />
+</config>

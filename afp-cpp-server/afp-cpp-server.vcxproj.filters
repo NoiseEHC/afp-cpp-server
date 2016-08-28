@@ -18,6 +18,18 @@
     <ClInclude Include="stdafx.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Price.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Portfolio.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FakeMarketData.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -26,5 +38,17 @@
     <ClCompile Include="afp-cpp-server.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Portfolio.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Config.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FakeMarketData.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="config.xml" />
   </ItemGroup>
 </Project>
