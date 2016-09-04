@@ -10,15 +10,21 @@ struct PriceUpdate;
 class Portfolio
 {
 	boost::asio::io_service::strand _strand;
+	std::unordered_map<std::string, Price> _lastStockPrice;
 	int _called;
 
 public:
-	Portfolio(boost::asio::io_service &io);
+	std::string Id;
+
+	Portfolio(boost::asio::io_service &io, std::string const &id, std::vector<std::string> const &stockList);
 
 	template <typename CompletionHandler>
 	BOOST_ASIO_INITFN_RESULT_TYPE(CompletionHandler, void()) Enque(BOOST_ASIO_MOVE_ARG(CompletionHandler) handler) {
 		return _strand.post(BOOST_ASIO_MOVE_CAST(CompletionHandler)(handler));
 	}
+
+	void UpdateStockPrice(std::string const &stockId, Price const &newPrice);
+	std::vector<std::string> GetStockIdList() const;
 
 	void IncrementCalled(int increment) {
 		_called += increment;

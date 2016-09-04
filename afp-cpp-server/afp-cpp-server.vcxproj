@@ -148,6 +148,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Categorize.h" />
     <ClInclude Include="Config.h" />
     <ClInclude Include="FakeMarketData.h" />
     <ClInclude Include="Portfolio.h" />

@@ -3,10 +3,29 @@
 
 using namespace std;
 
-Portfolio::Portfolio(boost::asio::io_service & io) :
+Portfolio::Portfolio(boost::asio::io_service & io, string const &id, vector<string> const &stockList) :
 	_strand(io),
-	_called(0)
+	_called(0),
+	Id(id)
 {
+	for (auto const &item : stockList)
+		_lastStockPrice.emplace(make_pair(item, Price(numeric_limits<double>::quiet_NaN(), numeric_limits<double>::quiet_NaN())));
+}
+
+void Portfolio::UpdateStockPrice(string const & stockId, Price const & newPrice)
+{
+	auto stock = _lastStockPrice.find(stockId);
+	if (stock != _lastStockPrice.end()) {
+		stock->second = newPrice;
+		//TODO: recalculate
+	}
+}
+
+vector<string> Portfolio::GetStockIdList() const
+{
+	vector<string> result;
+	transform(cbegin(_lastStockPrice), cend(_lastStockPrice), back_inserter(result), [](auto const &item) { return item.first; });
+	return result;
 }
 
 Subsciption::Subsciption(boost::asio::io_service &io) :
