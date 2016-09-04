@@ -8,11 +8,11 @@ using namespace std;
 // FakeMarketData::RandomPrice
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FakeMarketData::RandomPrice::RandomPrice(std::string stockId) :
+FakeMarketData::RandomPrice::RandomPrice(string stockId) :
 	_stockId(stockId)
 {
-	_sellPrice = 51.0;
 	_buyPrice = 50.0;
+	_sellPrice = 51.0;
 }
 
 bool FakeMarketData::RandomPrice::UpdatePriceRandomly()
@@ -36,16 +36,18 @@ bool FakeMarketData::RandomPrice::UpdatePriceRandomly()
 	}
 }
 
-PriceUpdate FakeMarketData::RandomPrice::GetUpdate() const
+void FakeMarketData::RandomPrice::GetUpdate(string const* &stockId, double &newBuyPrice, double &newSellPrice) const
 {
-	return PriceUpdate(_stockId, Price(_buyPrice, _sellPrice));
+	stockId = &_stockId;
+	newBuyPrice = _buyPrice;
+	newSellPrice = _sellPrice;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FakeMarketData
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FakeMarketData::FakeMarketData(function<void(PriceUpdate const &)> callback) :
+FakeMarketData::FakeMarketData(function<void(string const &stockId, double newBuyPrice, double newSellPrice)> callback) :
 	_callback(callback),
 	_stop(false),
 	_thread(&FakeMarketData::ThreadProc, this)
@@ -59,13 +61,13 @@ FakeMarketData::~FakeMarketData()
 		_thread.join();
 }
 
-void FakeMarketData::Subscribe(std::string const &stockId)
+void FakeMarketData::Subscribe(string const &stockId)
 {
 	lock_guard<mutex> lock(_fakeConnectionsLock);
 	_fakeConnections.emplace_back(stockId);
 }
 
-void FakeMarketData::Unsubscribe(std::string const &stockId)
+void FakeMarketData::Unsubscribe(string const &stockId)
 {
 	lock_guard<mutex> lock(_fakeConnectionsLock);
 	remove_if(begin(_fakeConnections), end(_fakeConnections), [&stockId](RandomPrice const &item) { return item.GetStockId() == stockId; });
@@ -75,7 +77,9 @@ void FakeMarketData::ThreadProc()
 {
 	boost::random::mt19937 gen;
 	while (!_stop) {
-		PriceUpdate update;
+		string const *stockId = nullptr;
+		double newBuyPrice = 0.0;
+		double newSellPrice = 0.0;
 		bool thereIsAnUpdate = false;
 		{
 			lock_guard<mutex> lock(_fakeConnectionsLock);
@@ -84,11 +88,11 @@ void FakeMarketData::ThreadProc()
 				auto &stock = _fakeConnections[dist(gen)];
 				thereIsAnUpdate = stock.UpdatePriceRandomly();
 				if (thereIsAnUpdate)
-					update = stock.GetUpdate();
+					stock.GetUpdate(stockId, newBuyPrice, newSellPrice);
 			}
 		}
 		if (thereIsAnUpdate)
-			_callback(update);
+			_callback(*stockId, newBuyPrice, newSellPrice);
 		using namespace std::chrono_literals;
 		this_thread::sleep_for(100ms);
 	}

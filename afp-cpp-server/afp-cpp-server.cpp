@@ -1,21 +1,12 @@
 #include "stdafx.h"
-#include "Config.h"
-#include "FakeMarketData.h"
-#include <iostream>
+#include "Program.h"
 
 using namespace std;
 
 int main()
 {
-	FakeMarketData fakeConnections([](PriceUpdate const &) {
-		cout << "tick" << endl;
-	});
-
-	auto p = XmlConfig::LoadFromXml("config.xml");
-	for (auto const &marketData : p.MarketDataList)
-		fakeConnections.Subscribe(marketData.Id);
-
-	this_thread::sleep_for(1000ms);
+	Program p;
+	p.Run();
 
 	return 0;
 }

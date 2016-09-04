@@ -21,26 +21,26 @@ class FakeMarketData
 	{
 		std::string _stockId;
 		boost::random::mt19937 _gen;
-		double _sellPrice;
 		double _buyPrice;
+		double _sellPrice;
 
 	public:
 		RandomPrice(std::string stockId);
 		std::string const &GetStockId() const { return _stockId; }
 		bool UpdatePriceRandomly();
-		PriceUpdate GetUpdate() const;
+		void GetUpdate(std::string const* &stockId, double &newBuyPrice, double &newSellPrice) const;
 	};
 
 	mutable std::mutex _fakeConnectionsLock;
 	std::vector<RandomPrice> _fakeConnections;
-	std::function<void(PriceUpdate const &)> _callback;
+	std::function<void(std::string const &stockId, double newBuyPrice, double newSellPrice)> _callback;
 	std::atomic<bool> _stop;
 	std::thread _thread;
 
 	void ThreadProc();
 
 public:
-	FakeMarketData(std::function<void(PriceUpdate const &)> callback);
+	FakeMarketData(std::function<void(std::string const &stockId, double newBuyPrice, double newSellPrice)> callback);
 	~FakeMarketData();
 	void Subscribe(std::string const &stockId);
 	void Unsubscribe(std::string const &stockId);

@@ -13,31 +13,23 @@ struct Price {
 	{
 	}
 
-	Price operator +(Price const &other)
+	Price operator +(Price const &other) const
 	{
 		return Price(BuyPrice + other.BuyPrice, SellPrice + other.SellPrice);
 	}
 
-	Price operator *(double const &other)
+	Price operator *(double const &other) const
 	{
 		return Price(BuyPrice * other, SellPrice * other);
 	}
-};
 
-struct PriceUpdate
-{
-	std::string StockId;
-	Price NewPrice;
-
-	PriceUpdate() :
-		StockId(),
-		NewPrice(std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN())
+	bool operator ==(Price const &other) const
 	{
+		return BuyPrice == other.BuyPrice && SellPrice == other.SellPrice;
 	}
 
-	PriceUpdate(std::string const &stockId, Price const &newPrice) :
-		StockId(stockId),
-		NewPrice(newPrice)
+	bool operator !=(Price const &other) const
 	{
+		return !(*this == other);
 	}
 };
