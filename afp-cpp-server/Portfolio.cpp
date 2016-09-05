@@ -28,9 +28,10 @@ vector<string> Portfolio::GetStockIdList() const
 	return result;
 }
 
-Subsciption::Subsciption(boost::asio::io_service &io) :
+Subsciption::Subsciption(boost::asio::io_service &io, string const &id) :
 	_strand(io),
-	_lastPrice(0.0, 0.0)
+	_lastPrice(0.0, 0.0),
+	Id(id)
 {
 }
 

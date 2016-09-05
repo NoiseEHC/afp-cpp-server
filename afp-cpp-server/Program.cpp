@@ -5,6 +5,8 @@
 
 #include <iostream>
 #include <conio.h>
+#include <stdexcept>
+#include <unordered_set>
 
 using namespace std;
 
@@ -22,10 +24,6 @@ void Program::Run()
 		ioThreads.emplace_back([this]() { _io.run(); });
 
 	ReloadConfig();
-	auto sub = make_shared<Subsciption>(_io);
-	sub->SubscribedList.emplace_back(make_shared<Portfolio>(_io, "P1", vector<string>()));
-	_currentState->SubsciptionHash["VOD LN"] = sub;
-	_fakeConnections.Subscribe("VOD LN");
 
 	while (true) {
 		cout << "Press R to reload config, Q to quit" << endl;
@@ -141,12 +139,54 @@ vector<PortfolioConfig> Program::CalculateNewPortfolioConfigList(
 	return result;
 }
 
+vector<Program::MarketDataUsage> Program::GroupPortfolioBySubscription(
+	unordered_map<string, MarketDataConfig> const &marketDataHash,
+	vector<PortfolioConfig> const &newPortfolioConfigList)
+{
+	unordered_map<string, vector<string>> result;
+	for (auto const &portfolio : newPortfolioConfigList) {
+		unordered_set<string> allMarketDataId;
+		for (auto const &stock : portfolio.StockList) {
+			auto stockMarketData = marketDataHash.find(stock.StockId);
+			if (stockMarketData == marketDataHash.cend())
+				throw logic_error("Invalid stock id");
+			if (stockMarketData->second.IsCurrency)
+				throw logic_error("Stock should not be a currency");
+			auto currencyMarketData = marketDataHash.find(stockMarketData->second.CurrencyId);
+			if (currencyMarketData == marketDataHash.cend())
+				throw logic_error("Invalid stock currency id");
+			allMarketDataId.insert(stockMarketData->second.Id);
+			allMarketDataId.insert(currencyMarketData->second.Id);
+		}
+		for (auto const &id : allMarketDataId)
+			result[id].push_back(portfolio.Id);
+	}
+	vector<MarketDataUsage> returned;
+	transform(cbegin(result), cend(result), back_inserter(returned), [](auto const &item) { return MarketDataUsage{ item.first, item.second }; });
+	return returned;
+}
+
+vector<CategorizeResult<Program::SubscriptionChange, Program::MarketDataUsage, shared_ptr<Subsciption>>> Program::CalculateSubscribeChanges(
+	vector<shared_ptr<Subsciption>> const &subsciptionList,
+	vector<MarketDataUsage> const &portfolioIdBySubscriptionId)
+{
+	return Categorize<SubscriptionChange, string, MarketDataUsage, shared_ptr<Subsciption>>(
+		SubscriptionChange::NeedsSubscribe, portfolioIdBySubscriptionId, [](auto const &item) { return item.Id; },
+		SubscriptionChange::NeedsUnsubscribe, subsciptionList, [](auto const &item) { return item->Id; },
+		[](auto const &, auto const &) { return SubscriptionChange::NeedsChange; }); // Note that it always returns change...
+}
+
 void Program::ConfigChange(shared_ptr<XmlConfig> newConfig)
 {
 	auto marketDataHash = CalculateMarketDataHash(*newConfig);
 	auto portfolioChanges = CalculateNewPortfolioChanges(*newConfig);
 	auto newPortfolioHash = CalculateNewPortfolioHash(portfolioChanges, marketDataHash);
 	auto newPortfolioConfigList = CalculateNewPortfolioConfigList(portfolioChanges);
+	auto portfolioIdBySubscriptionId = GroupPortfolioBySubscription(marketDataHash, newPortfolioConfigList);
+	vector<shared_ptr<Subsciption>> subsciptionList;
+	for (auto const &item : _currentState->SubsciptionHash)
+		subsciptionList.emplace_back(item.second);
+	auto subscribeChanges = CalculateSubscribeChanges(subsciptionList, portfolioIdBySubscriptionId);
 
 	auto newState = make_shared<GlobalState>(GlobalState{ {}, {}, _currentState->Increment + 1 });
 	for (auto const &item : newPortfolioHash)

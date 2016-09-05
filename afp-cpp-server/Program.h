@@ -6,6 +6,7 @@
 
 struct GlobalState;
 class Portfolio;
+class Subsciption;
 
 struct XmlConfig;
 struct PortfolioConfig;
@@ -30,6 +31,19 @@ class Program
 		NeedsRestart,
 	};
 
+	enum class SubscriptionChange
+	{
+		NeedsSubscribe,
+		NeedsUnsubscribe,
+		NeedsChange,
+	};
+
+	struct MarketDataUsage
+	{
+		std::string Id;
+		std::vector<std::string> UsedBy;
+	};
+
 	std::shared_ptr<Portfolio> CreatePortfolioFromConfig(
 		PortfolioConfig const &config,
 		std::unordered_map<std::string, MarketDataConfig> const &marketDataHash);
@@ -40,6 +54,12 @@ class Program
 		std::unordered_map<std::string, MarketDataConfig> const &marketDataHash);
 	std::vector<PortfolioConfig> CalculateNewPortfolioConfigList(
 		std::vector<CategorizeResult<PortfolioChange, PortfolioConfig, std::shared_ptr<Portfolio>>> const &changes);
+	std::vector<MarketDataUsage> GroupPortfolioBySubscription(
+		std::unordered_map<std::string, MarketDataConfig> const &marketDataHash,
+		std::vector<PortfolioConfig> const &newPortfolioConfigList);
+	std::vector<CategorizeResult<SubscriptionChange, MarketDataUsage, std::shared_ptr<Subsciption>>> CalculateSubscribeChanges(
+		std::vector<std::shared_ptr<Subsciption>> const &subsciptionList,
+		std::vector<MarketDataUsage> const &portfolioIdBySubscriptionId);
 
 public:
 	Program();

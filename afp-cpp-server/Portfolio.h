@@ -37,9 +37,10 @@ class Subsciption
 	Price _lastPrice;
 
 public:
+	std::string Id;
 	std::vector<std::shared_ptr<Portfolio>> SubscribedList;
 
-	Subsciption(boost::asio::io_service &io);
+	Subsciption(boost::asio::io_service &io, std::string const &id);
 	void ProcessPacket(std::shared_ptr<PriceUpdate> const &packet);
 };
 
