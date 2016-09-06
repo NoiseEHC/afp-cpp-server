@@ -1,23 +1,29 @@
 #include "stdafx.h"
 #include "Portfolio.h"
+#include <iostream>
 
 using namespace std;
 
-Portfolio::Portfolio(boost::asio::io_service & io, string const &id, vector<string> const &stockList) :
-	_strand(io),
-	_called(0),
-	Id(id)
+void Portfolio::Recalculate(string const &lastChangedId) const
 {
-	for (auto const &item : stockList)
-		_lastStockPrice.emplace(make_pair(item, Price(numeric_limits<double>::quiet_NaN(), numeric_limits<double>::quiet_NaN())));
+	Price result = Price{ 0.0, 0.0 };
+	for (auto const &stock : _stockList) {
+		auto const &currency = _lastStockPrice.at(stock.CurrencyId);
+		double midCurrency = (currency.BuyPrice + currency.SellPrice) / 2;
+		result = result + _lastStockPrice.at(stock.StockId) * midCurrency * (double)stock.Count;
+	}
+	auto _ = lastChangedId;
+	//cout << Id << "(" << lastChangedId << ") == " << result.BuyPrice << "," << result.SellPrice << endl;
 }
 
-void Portfolio::UpdateStockPrice(string const & stockId, Price const & newPrice)
+Portfolio::Portfolio(boost::asio::io_service & io, string const &id, vector<StockConfigWithCurrency> const &stockList) :
+	_strand(io),
+	Id(id),
+	_stockList(stockList)
 {
-	auto stock = _lastStockPrice.find(stockId);
-	if (stock != _lastStockPrice.end()) {
-		stock->second = newPrice;
-		//TODO: recalculate
+	for (auto const &item : _stockList) {
+		_lastStockPrice.emplace(make_pair(item.StockId, Price(numeric_limits<double>::quiet_NaN(), numeric_limits<double>::quiet_NaN())));
+		_lastStockPrice.emplace(make_pair(item.CurrencyId, Price(numeric_limits<double>::quiet_NaN(), numeric_limits<double>::quiet_NaN())));
 	}
 }
 
@@ -28,8 +34,13 @@ vector<string> Portfolio::GetStockIdList() const
 	return result;
 }
 
-Subsciption::Subsciption(boost::asio::io_service &io, string const &id) :
-	_strand(io),
+void Portfolio::ProcessPacket(std::shared_ptr<PriceUpdate> const & packet)
+{
+	_lastStockPrice.insert_or_assign(packet->StockId, packet->NewPrice);
+	Recalculate(packet->StockId);
+}
+
+Subsciption::Subsciption(string const &id) :
 	_lastPrice(0.0, 0.0),
 	Id(id)
 {
@@ -45,7 +56,7 @@ void Subsciption::ProcessPacket(shared_ptr<PriceUpdate> const &packet)
 	_lastPrice = packet->NewPrice;
 
 	for (auto const &p : SubscribedList)
-		p->Enque([p, packet]() { p->IncrementCalled(1); });
+		p->Enque([p, packet]() { p->ProcessPacket(packet); });
 }
 
 PriceUpdate::PriceUpdate(shared_ptr<GlobalState>&& state, string const & stockId, Price const & newPrice) :

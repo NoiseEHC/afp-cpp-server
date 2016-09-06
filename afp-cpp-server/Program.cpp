@@ -76,10 +76,19 @@ bool IsPortfolioDifferent(PortfolioConfig const &newConfig, Portfolio const &old
 
 shared_ptr<Portfolio> Program::CreatePortfolioFromConfig(
 	PortfolioConfig const &config,
-	unordered_map<string, MarketDataConfig> const &)
+	unordered_map<string, MarketDataConfig> const &marketDataHash)
 {
-	vector<string> stockList;
-	transform(cbegin(config.StockList), cend(config.StockList), back_inserter(stockList), [](StockConfig const &item) {return item.StockId; });
+	vector<Portfolio::StockConfigWithCurrency> stockList;
+	for (auto const &stock : config.StockList) {
+		auto md = marketDataHash.find(stock.StockId);
+		if (md != marketDataHash.end()) {
+			stockList.emplace_back(Portfolio::StockConfigWithCurrency{
+				stock.StockId,
+				stock.Count,
+				md->second.Id,
+			});
+		}
+	}
 	return make_shared<Portfolio>(_io, config.Id, stockList);
 }
 
@@ -106,8 +115,8 @@ unordered_map<string, shared_ptr<Portfolio>> Program::CalculateNewPortfolioHash(
 			break;
 
 		case PortfolioChange::NeedsStart:
+			cout << "Starting portfolio " << wtd.Left->Id << " with " << wtd.Left->StockList.size() << " stocks " << endl;
 		case PortfolioChange::NeedsRestart: // Note that restarting a porfolio "forgets" the current price.
-			cout << "Starting portfolio " << wtd.Left->Id << endl;
 			result[wtd.Left->Id] = CreatePortfolioFromConfig(*wtd.Left, marketDataHash);
 			break;
 
@@ -190,9 +199,9 @@ void Program::PerformConfigChange(
 			auto cfg = marketDataHash.find(s.Left->Id);
 			if (cfg == marketDataHash.end())
 				throw new logic_error("Invalid subscription id");
-			auto sub = make_shared<Subsciption>(_io, s.Left->Id);
-			for (auto const &item : newPortfolioHash)
-				sub->SubscribedList.emplace_back(item.second);
+			auto sub = make_shared<Subsciption>(s.Left->Id);
+			for (auto const &item : s.Left->UsedBy)
+				sub->SubscribedList.emplace_back(newPortfolioHash.at(item));
 			newSubscriptionHash[s.Left->Id] = sub;
 			break;
 		}
@@ -203,10 +212,10 @@ void Program::PerformConfigChange(
 			break;
 		case SubscriptionChange::NeedsChange:
 		{
-			// Note that this would require to work properly having a shared queue.
+			// Note that this would require to work properly having a shared state & queue.
 			auto copy = make_shared<Subsciption>(**s.Right);
-			for (auto const &item : newPortfolioHash)
-				copy->SubscribedList.emplace_back(item.second);
+			for (auto const &item : s.Left->UsedBy)
+				copy->SubscribedList.emplace_back(newPortfolioHash.at(item));
 			newSubscriptionHash[s.Left->Id] = copy;
 		}
 		}
@@ -221,7 +230,7 @@ void Program::PerformConfigChange(
 
 	for (auto const &s : subscribeChanges) {
 		if (s.Category == SubscriptionChange::NeedsSubscribe) {
-			cerr << "Subscribing: " << s.Left->Id << endl;
+			cerr << "Subscribing: " << s.Left->Id << " with " << s.Left->UsedBy.size() << " portfolios " << endl;
 			_fakeConnections.Subscribe(s.Left->Id);
 		}
 	}

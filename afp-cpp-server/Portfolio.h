@@ -9,38 +9,44 @@ struct PriceUpdate;
 
 class Portfolio
 {
+public:
+	struct StockConfigWithCurrency
+	{
+		std::string StockId; //!< Points to a MarketDataConfig where IsCurrency == false.
+		uint64_t Count; //!< Number of shares of this stock.
+		std::string CurrencyId; //!< Points to a MarketDataConfig where IsCurrency == true.
+	};
+
+private:
 	boost::asio::io_service::strand _strand;
 	std::unordered_map<std::string, Price> _lastStockPrice;
-	int _called;
+	std::vector<StockConfigWithCurrency> _stockList;
+	void Recalculate(std::string const &lastChangedId) const;
 
 public:
 	std::string Id;
 
-	Portfolio(boost::asio::io_service &io, std::string const &id, std::vector<std::string> const &stockList);
+	Portfolio(boost::asio::io_service &io, std::string const &id, std::vector<StockConfigWithCurrency> const &stockList);
 
 	template <typename CompletionHandler>
 	BOOST_ASIO_INITFN_RESULT_TYPE(CompletionHandler, void()) Enque(BOOST_ASIO_MOVE_ARG(CompletionHandler) handler) {
 		return _strand.post(BOOST_ASIO_MOVE_CAST(CompletionHandler)(handler));
 	}
 
-	void UpdateStockPrice(std::string const &stockId, Price const &newPrice);
 	std::vector<std::string> GetStockIdList() const;
 
-	void IncrementCalled(int increment) {
-		_called += increment;
-	}
+	void ProcessPacket(std::shared_ptr<PriceUpdate> const &packet);
 };
 
 class Subsciption
 {
-	boost::asio::io_service::strand _strand;
 	Price _lastPrice;
 
 public:
 	std::string Id;
 	std::vector<std::shared_ptr<Portfolio>> SubscribedList;
 
-	Subsciption(boost::asio::io_service &io, std::string const &id);
+	Subsciption(std::string const &id);
 	void ProcessPacket(std::shared_ptr<PriceUpdate> const &packet);
 };
 
