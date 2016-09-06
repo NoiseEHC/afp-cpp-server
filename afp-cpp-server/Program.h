@@ -60,6 +60,11 @@ class Program
 	std::vector<CategorizeResult<SubscriptionChange, MarketDataUsage, std::shared_ptr<Subsciption>>> CalculateSubscribeChanges(
 		std::vector<std::shared_ptr<Subsciption>> const &subsciptionList,
 		std::vector<MarketDataUsage> const &portfolioIdBySubscriptionId);
+	void Program::PerformConfigChange(
+		std::shared_ptr<XmlConfig> newConfig,
+		std::unordered_map<std::string, MarketDataConfig> const &marketDataHash,
+		std::unordered_map<std::string, std::shared_ptr<Portfolio>> const &newPortfolioHash,
+		std::vector<CategorizeResult<Program::SubscriptionChange, Program::MarketDataUsage, std::shared_ptr<Subsciption>>> const &subscribeChanges);
 
 public:
 	Program();

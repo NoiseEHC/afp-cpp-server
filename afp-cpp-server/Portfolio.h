@@ -48,7 +48,6 @@ struct GlobalState
 {
 	std::vector<std::shared_ptr<Portfolio>> PortfolioList;
 	std::unordered_map<std::string, std::shared_ptr<Subsciption>> SubsciptionHash;
-	int Increment;
 };
 
 struct PriceUpdate

@@ -11,7 +11,7 @@
 using namespace std;
 
 Program::Program() :
-	_currentState(make_shared<GlobalState>(GlobalState{ {}, {}, 1 })),
+	_currentState(make_shared<GlobalState>(GlobalState{ {}, {} })),
 	_fakeConnections([this](string const &stockId, double newBuyPrice, double newSellPrice) { ProcessUpdate(stockId, newBuyPrice, newSellPrice); })
 {
 }
@@ -176,6 +176,57 @@ vector<CategorizeResult<Program::SubscriptionChange, Program::MarketDataUsage, s
 		[](auto const &, auto const &) { return SubscriptionChange::NeedsChange; }); // Note that it always returns change...
 }
 
+void Program::PerformConfigChange(
+	shared_ptr<XmlConfig> newConfig,
+	unordered_map<string, MarketDataConfig> const &marketDataHash,
+	unordered_map<string, shared_ptr<Portfolio>> const &newPortfolioHash,
+	vector<CategorizeResult<Program::SubscriptionChange, Program::MarketDataUsage, shared_ptr<Subsciption>>> const &subscribeChanges)
+{
+	unordered_map<string, shared_ptr<Subsciption>> newSubscriptionHash;
+	for (auto const &s : subscribeChanges) {
+		switch (s.Category) {
+		case SubscriptionChange::NeedsSubscribe:
+		{
+			auto cfg = marketDataHash.find(s.Left->Id);
+			if (cfg == marketDataHash.end())
+				throw new logic_error("Invalid subscription id");
+			auto sub = make_shared<Subsciption>(_io, s.Left->Id);
+			for (auto const &item : newPortfolioHash)
+				sub->SubscribedList.emplace_back(item.second);
+			newSubscriptionHash[s.Left->Id] = sub;
+			break;
+		}
+		case SubscriptionChange::NeedsUnsubscribe:
+			// just leave out the object from newSubscriptionHash
+			cerr << "Unsubscribing: " << (*s.Right)->Id << endl;
+			_fakeConnections.Unsubscribe((*s.Right)->Id);
+			break;
+		case SubscriptionChange::NeedsChange:
+		{
+			// Note that this would require to work properly having a shared queue.
+			auto copy = make_shared<Subsciption>(**s.Right);
+			for (auto const &item : newPortfolioHash)
+				copy->SubscribedList.emplace_back(item.second);
+			newSubscriptionHash[s.Left->Id] = copy;
+		}
+		}
+	}
+
+	auto newState = make_shared<GlobalState>(GlobalState{ {}, newSubscriptionHash });
+	for (auto const &item : newPortfolioHash)
+		newState->PortfolioList.emplace_back(item.second);
+	atomic_store_explicit(&_currentState, newState, memory_order_release);
+
+	// Note that everything which can fail from now on must be part of the "nonconfiguration" part of the program!!!
+
+	for (auto const &s : subscribeChanges) {
+		if (s.Category == SubscriptionChange::NeedsSubscribe) {
+			cerr << "Subscribing: " << s.Left->Id << endl;
+			_fakeConnections.Subscribe(s.Left->Id);
+		}
+	}
+}
+
 void Program::ConfigChange(shared_ptr<XmlConfig> newConfig)
 {
 	auto marketDataHash = CalculateMarketDataHash(*newConfig);
@@ -188,8 +239,5 @@ void Program::ConfigChange(shared_ptr<XmlConfig> newConfig)
 		subsciptionList.emplace_back(item.second);
 	auto subscribeChanges = CalculateSubscribeChanges(subsciptionList, portfolioIdBySubscriptionId);
 
-	auto newState = make_shared<GlobalState>(GlobalState{ {}, {}, _currentState->Increment + 1 });
-	for (auto const &item : newPortfolioHash)
-		newState->PortfolioList.emplace_back(item.second);
-	atomic_store_explicit(&_currentState, newState, memory_order_release);
+	PerformConfigChange(newConfig, marketDataHash, newPortfolioHash, subscribeChanges);
 }

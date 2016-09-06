@@ -45,7 +45,7 @@ void Subsciption::ProcessPacket(shared_ptr<PriceUpdate> const &packet)
 	_lastPrice = packet->NewPrice;
 
 	for (auto const &p : SubscribedList)
-		p->Enque([p, packet]() { p->IncrementCalled(packet->State->Increment); });
+		p->Enque([p, packet]() { p->IncrementCalled(1); });
 }
 
 PriceUpdate::PriceUpdate(shared_ptr<GlobalState>&& state, string const & stockId, Price const & newPrice) :
