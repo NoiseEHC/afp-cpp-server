@@ -34,19 +34,19 @@ vector<string> Portfolio::GetStockIdList() const
 	return result;
 }
 
-void Portfolio::ProcessPacket(std::shared_ptr<PriceUpdate> const & packet)
+void Portfolio::ProcessPacket(shared_ptr<PriceUpdate> const & packet)
 {
 	_lastStockPrice.insert_or_assign(packet->StockId, packet->NewPrice);
 	Recalculate(packet->StockId);
 }
 
-Subsciption::Subsciption(string const &id) :
+Subscription::Subscription(string const &id) :
 	_lastPrice(0.0, 0.0),
 	Id(id)
 {
 }
 
-void Subsciption::ProcessPacket(shared_ptr<PriceUpdate> const &packet)
+void Subscription::ProcessPacket(shared_ptr<PriceUpdate> const &packet)
 {
 	// Here comes the code which must be executed synchronously during packet processing. (eg must be executed once per Subscription)
 

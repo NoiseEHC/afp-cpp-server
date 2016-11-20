@@ -38,7 +38,7 @@ public:
 	void ProcessPacket(std::shared_ptr<PriceUpdate> const &packet);
 };
 
-class Subsciption
+class Subscription
 {
 	Price _lastPrice;
 
@@ -46,14 +46,14 @@ public:
 	std::string Id;
 	std::vector<std::shared_ptr<Portfolio>> SubscribedList;
 
-	Subsciption(std::string const &id);
+	Subscription(std::string const &id);
 	void ProcessPacket(std::shared_ptr<PriceUpdate> const &packet);
 };
 
 struct GlobalState
 {
 	std::vector<std::shared_ptr<Portfolio>> PortfolioList;
-	std::unordered_map<std::string, std::shared_ptr<Subsciption>> SubsciptionHash;
+	std::unordered_map<std::string, std::shared_ptr<Subscription>> SubscriptionHash;
 };
 
 struct PriceUpdate

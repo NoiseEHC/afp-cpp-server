@@ -17,14 +17,14 @@ struct MarketDataConfig
 	std::string Id; //!< Id of the stock or currency.
 	bool IsCurrency; //!< If true then it can be used as a currency, otherwise as a stock.
 	std::string CurrencyId; //!< If it is a stock, it uses this currency (ignored for currencies).
-	std::string Username; //!< This is for imaginary marked data feed connections.
-	std::string Password; //!< This is for imaginary marked data feed connections.
+	std::string Username; //!< This is for imaginary market data feed connections.
+	std::string Password; //!< This is for imaginary market data feed connections.
 };
 
 struct XmlConfig
 {
-	std::vector<PortfolioConfig> PortfolioList;
-	std::vector<MarketDataConfig> MarketDataList;
+	std::vector<PortfolioConfig> PortfolioList; //!< All the portfolio configurations.
+	std::vector<MarketDataConfig> MarketDataList; //!< All the market data configurations, some are used, some are not.
 
 	static XmlConfig LoadFromXml(char const *filename);
 };

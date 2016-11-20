@@ -52,15 +52,15 @@ void Program::Shutdown()
 	ConfigChange(make_shared<XmlConfig>());
 }
 
-void Program::ProcessUpdate(string const &stockId, double newSellPrice, double newBuyPrice)
+void Program::ProcessUpdate(string const &stockId, double newBuyPrice, double newSellPrice)
 {
 	// In a real server application this is the code which receives the network packet or other physical event,
 	// here this code is called from the single thread of the FakeMarketData.
 	auto state = atomic_load_explicit(&_currentState, memory_order_acquire);
 
-	auto subscription = state->SubsciptionHash.find(stockId); // note that this is not a concurrent dictionary
-	if (subscription != state->SubsciptionHash.end()) {
-		auto packet = make_shared<PriceUpdate>(move(state), stockId, Price(newSellPrice, newBuyPrice));
+	auto subscription = state->SubscriptionHash.find(stockId); //NOTE: this is not a concurrent dictionary, we do not need that.
+	if (subscription != state->SubscriptionHash.end()) {
+		auto packet = make_shared<PriceUpdate>(move(state), stockId, Price(newBuyPrice, newSellPrice));
 		subscription->second->ProcessPacket(packet);
 	}
 }
@@ -108,7 +108,6 @@ unordered_map<string, shared_ptr<Portfolio>> Program::CalculateNewPortfolioHash(
 	unordered_map<string, shared_ptr<Portfolio>> result;
 
 	for (auto const &wtd : changes) {
-
 		switch (wtd.Category) {
 		case PortfolioChange::Nothing:
 			result[(*wtd.Right)->Id] = *wtd.Right; // copy shared_ptr<Portfolio>
@@ -116,7 +115,8 @@ unordered_map<string, shared_ptr<Portfolio>> Program::CalculateNewPortfolioHash(
 
 		case PortfolioChange::NeedsStart:
 			cout << "Starting portfolio " << wtd.Left->Id << " with " << wtd.Left->StockList.size() << " stocks " << endl;
-		case PortfolioChange::NeedsRestart: // Note that restarting a porfolio "forgets" the current price.
+
+		case PortfolioChange::NeedsRestart: //NOTE: restarting a porfolio "forgets" the current price.
 			result[wtd.Left->Id] = CreatePortfolioFromConfig(*wtd.Left, marketDataHash);
 			break;
 
@@ -175,23 +175,27 @@ vector<Program::MarketDataUsage> Program::GroupPortfolioBySubscription(
 	return returned;
 }
 
-vector<CategorizeResult<Program::SubscriptionChange, Program::MarketDataUsage, shared_ptr<Subsciption>>> Program::CalculateSubscribeChanges(
-	vector<shared_ptr<Subsciption>> const &subsciptionList,
+vector<CategorizeResult<Program::SubscriptionChange, Program::MarketDataUsage, shared_ptr<Subscription>>> Program::CalculateSubscribeChanges(
+	vector<shared_ptr<Subscription>> const &subscriptionList,
 	vector<MarketDataUsage> const &portfolioIdBySubscriptionId)
 {
-	return Categorize<SubscriptionChange, string, MarketDataUsage, shared_ptr<Subsciption>>(
+	return Categorize<SubscriptionChange, string, MarketDataUsage, shared_ptr<Subscription>>(
 		SubscriptionChange::NeedsSubscribe, portfolioIdBySubscriptionId, [](auto const &item) { return item.Id; },
-		SubscriptionChange::NeedsUnsubscribe, subsciptionList, [](auto const &item) { return item->Id; },
-		[](auto const &, auto const &) { return SubscriptionChange::NeedsChange; }); // Note that it always returns change...
+		SubscriptionChange::NeedsUnsubscribe, subscriptionList, [](auto const &item) { return item->Id; },
+		[](auto const &, auto const &) { return SubscriptionChange::NeedsChange; }); //NOTE: it always returns changed, even if nothing changed...
 }
 
 void Program::PerformConfigChange(
 	shared_ptr<XmlConfig> newConfig,
 	unordered_map<string, MarketDataConfig> const &marketDataHash,
 	unordered_map<string, shared_ptr<Portfolio>> const &newPortfolioHash,
-	vector<CategorizeResult<Program::SubscriptionChange, Program::MarketDataUsage, shared_ptr<Subsciption>>> const &subscribeChanges)
+	vector<CategorizeResult<Program::SubscriptionChange, Program::MarketDataUsage, shared_ptr<Subscription>>> const &subscribeChanges)
 {
-	unordered_map<string, shared_ptr<Subsciption>> newSubscriptionHash;
+	//NOTE: we assume that nothing will fail from now on (so all memory must be preallocated), 
+	// or if it fails does not matter (if unsubscribing fails, we just close the socket anyways),
+	// otherwise that failing thing must be part of the "nonconfiguration" part of the program!!!
+
+	unordered_map<string, shared_ptr<Subscription>> newSubscriptionHash;
 	for (auto const &s : subscribeChanges) {
 		switch (s.Category) {
 		case SubscriptionChange::NeedsSubscribe:
@@ -199,7 +203,7 @@ void Program::PerformConfigChange(
 			auto cfg = marketDataHash.find(s.Left->Id);
 			if (cfg == marketDataHash.end())
 				throw new logic_error("Invalid subscription id");
-			auto sub = make_shared<Subsciption>(s.Left->Id);
+			auto sub = make_shared<Subscription>(s.Left->Id);
 			for (auto const &item : s.Left->UsedBy)
 				sub->SubscribedList.emplace_back(newPortfolioHash.at(item));
 			newSubscriptionHash[s.Left->Id] = sub;
@@ -212,8 +216,8 @@ void Program::PerformConfigChange(
 			break;
 		case SubscriptionChange::NeedsChange:
 		{
-			// Note that this would require to work properly having a shared state & queue.
-			auto copy = make_shared<Subsciption>(**s.Right);
+			//NOTE: in order to work properly (not forgetting current price), it should have a shared state & queue.
+			auto copy = make_shared<Subscription>(**s.Right);
 			for (auto const &item : s.Left->UsedBy)
 				copy->SubscribedList.emplace_back(newPortfolioHash.at(item));
 			newSubscriptionHash[s.Left->Id] = copy;
@@ -226,7 +230,7 @@ void Program::PerformConfigChange(
 		newState->PortfolioList.emplace_back(item.second);
 	atomic_store_explicit(&_currentState, newState, memory_order_release);
 
-	// Note that everything which can fail from now on must be part of the "nonconfiguration" part of the program!!!
+	//NOTE: everything which can fail from now on, must be part of the "nonconfiguration" part of the program!!!
 
 	for (auto const &s : subscribeChanges) {
 		if (s.Category == SubscriptionChange::NeedsSubscribe) {
@@ -238,15 +242,20 @@ void Program::PerformConfigChange(
 
 void Program::ConfigChange(shared_ptr<XmlConfig> newConfig)
 {
+	//NOTE: it does not matter how slow the following code is, as it runs asynchronously to the "nonconfiguration" part of the program.
+
 	auto marketDataHash = CalculateMarketDataHash(*newConfig);
 	auto portfolioChanges = CalculateNewPortfolioChanges(*newConfig);
 	auto newPortfolioHash = CalculateNewPortfolioHash(portfolioChanges, marketDataHash);
 	auto newPortfolioConfigList = CalculateNewPortfolioConfigList(portfolioChanges);
 	auto portfolioIdBySubscriptionId = GroupPortfolioBySubscription(marketDataHash, newPortfolioConfigList);
-	vector<shared_ptr<Subsciption>> subsciptionList;
-	for (auto const &item : _currentState->SubsciptionHash)
-		subsciptionList.emplace_back(item.second);
-	auto subscribeChanges = CalculateSubscribeChanges(subsciptionList, portfolioIdBySubscriptionId);
+	vector<shared_ptr<Subscription>> subscriptionList;
+	for (auto const &item : _currentState->SubscriptionHash)
+		subscriptionList.emplace_back(item.second);
+	auto subscribeChanges = CalculateSubscribeChanges(subscriptionList, portfolioIdBySubscriptionId);
+
+	//NOTE: up to this point the code can just fail and it will make no changes to objects used by the 
+	// "nonconfiguration" part of the program, so we just do not have to do anything to roll back changes.
 
 	PerformConfigChange(newConfig, marketDataHash, newPortfolioHash, subscribeChanges);
 }
