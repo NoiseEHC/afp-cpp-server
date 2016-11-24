@@ -28,7 +28,7 @@ class FakeMarketData
 		RandomPrice(std::string stockId);
 		std::string const &GetStockId() const { return _stockId; }
 		bool UpdatePriceRandomly();
-		void GetUpdate(std::string const* &stockId, double &newBuyPrice, double &newSellPrice) const;
+		void GetUpdate(std::string &stockId, double &newBuyPrice, double &newSellPrice) const;
 	};
 
 	mutable std::mutex _fakeConnectionsLock;

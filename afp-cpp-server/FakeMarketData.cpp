@@ -36,9 +36,9 @@ bool FakeMarketData::RandomPrice::UpdatePriceRandomly()
 	}
 }
 
-void FakeMarketData::RandomPrice::GetUpdate(string const* &stockId, double &newBuyPrice, double &newSellPrice) const
+void FakeMarketData::RandomPrice::GetUpdate(string &stockId, double &newBuyPrice, double &newSellPrice) const
 {
-	stockId = &_stockId;
+	stockId = _stockId;
 	newBuyPrice = _buyPrice;
 	newSellPrice = _sellPrice;
 }
@@ -77,7 +77,7 @@ void FakeMarketData::ThreadProc()
 {
 	boost::random::mt19937 gen;
 	while (!_stop) {
-		string const *stockId = nullptr;
+		string stockId;
 		double newBuyPrice = 0.0;
 		double newSellPrice = 0.0;
 		bool thereIsAnUpdate = false;
@@ -92,7 +92,7 @@ void FakeMarketData::ThreadProc()
 			}
 		}
 		if (thereIsAnUpdate)
-			_callback(*stockId, newBuyPrice, newSellPrice);
+			_callback(stockId, newBuyPrice, newSellPrice);
 		using namespace std::chrono_literals;
 		this_thread::sleep_for(100ms);
 	}
