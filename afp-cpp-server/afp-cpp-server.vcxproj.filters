@@ -36,6 +36,9 @@
     <ClInclude Include="Categorize.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="range.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

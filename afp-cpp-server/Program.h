@@ -52,8 +52,9 @@ class Program
 	std::unordered_map<std::string, std::shared_ptr<Portfolio>> CalculateNewPortfolioHash(
 		std::vector<CategorizeResult<PortfolioChange, PortfolioConfig, std::shared_ptr<Portfolio>>> const &changes,
 		std::unordered_map<std::string, MarketDataConfig> const &marketDataHash);
-	std::vector<PortfolioConfig> CalculateNewPortfolioConfigList(
-		std::vector<CategorizeResult<PortfolioChange, PortfolioConfig, std::shared_ptr<Portfolio>>> const &changes);
+	auto Program::CalculateNewPortfolioConfigList(
+		std::vector<CategorizeResult<PortfolioChange, PortfolioConfig, std::shared_ptr<Portfolio>>> const &changes
+	)->std::vector<PortfolioConfig>;
 	std::vector<MarketDataUsage> GroupPortfolioBySubscription(
 		std::unordered_map<std::string, MarketDataConfig> const &marketDataHash,
 		std::vector<PortfolioConfig> const &newPortfolioConfigList);

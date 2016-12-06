@@ -7,8 +7,10 @@
 #include <conio.h>
 #include <stdexcept>
 #include <unordered_set>
+#include "Range.h"
 
 using namespace std;
+using namespace boost::adaptors;
 
 Program::Program() :
 	_currentState(make_shared<GlobalState>(GlobalState{ {}, {} })),
@@ -130,27 +132,27 @@ unordered_map<string, shared_ptr<Portfolio>> Program::CalculateNewPortfolioHash(
 	return result;
 }
 
-static unordered_map<string, MarketDataConfig> CalculateMarketDataHash(XmlConfig const &newConfig)
+static auto CalculateMarketDataHash(
+	XmlConfig const &newConfig
+)->unordered_map<string, MarketDataConfig>
 {
-	unordered_map<string, MarketDataConfig> result;
-	for (auto const &item : newConfig.MarketDataList)
-		result[item.Id] = item;
-	return result;
+	return to_unordered_map(newConfig.MarketDataList, 
+		[](auto const &item) { return item.Id; });
 }
 
-vector<PortfolioConfig> Program::CalculateNewPortfolioConfigList(
-	vector<CategorizeResult<PortfolioChange, PortfolioConfig, shared_ptr<Portfolio>>> const &changes)
+auto Program::CalculateNewPortfolioConfigList(
+	vector<CategorizeResult<PortfolioChange, PortfolioConfig, shared_ptr<Portfolio>>> const &changes
+)->vector<PortfolioConfig>
 {
-	vector<PortfolioConfig> result;
-	for (auto const &item : changes)
-		if (item.Category != PortfolioChange::NeedsStop)
-			result.emplace_back(*item.Left);
-	return result;
+	return to_vector(changes
+		| filtered([](auto const &item) { return item.Category != PortfolioChange::NeedsStop; })
+		| transformed([](auto const &item) { return *item.Left; }));
 }
 
-vector<Program::MarketDataUsage> Program::GroupPortfolioBySubscription(
+auto Program::GroupPortfolioBySubscription(
 	unordered_map<string, MarketDataConfig> const &marketDataHash,
-	vector<PortfolioConfig> const &newPortfolioConfigList)
+	vector<PortfolioConfig> const &newPortfolioConfigList
+)->vector<MarketDataUsage>
 {
 	unordered_map<string, vector<string>> result;
 	for (auto const &portfolio : newPortfolioConfigList) {
@@ -170,9 +172,8 @@ vector<Program::MarketDataUsage> Program::GroupPortfolioBySubscription(
 		for (auto const &id : allMarketDataId)
 			result[id].push_back(portfolio.Id);
 	}
-	vector<MarketDataUsage> returned;
-	transform(cbegin(result), cend(result), back_inserter(returned), [](auto const &item) { return MarketDataUsage{ item.first, item.second }; });
-	return returned;
+	return to_vector(result 
+		| transformed([](auto const &item) { return MarketDataUsage{ item.first, item.second }; }));
 }
 
 vector<CategorizeResult<Program::SubscriptionChange, Program::MarketDataUsage, shared_ptr<Subscription>>> Program::CalculateSubscribeChanges(
@@ -249,9 +250,7 @@ void Program::ConfigChange(shared_ptr<XmlConfig> newConfig)
 	auto newPortfolioHash = CalculateNewPortfolioHash(portfolioChanges, marketDataHash);
 	auto newPortfolioConfigList = CalculateNewPortfolioConfigList(portfolioChanges);
 	auto portfolioIdBySubscriptionId = GroupPortfolioBySubscription(marketDataHash, newPortfolioConfigList);
-	vector<shared_ptr<Subscription>> subscriptionList;
-	for (auto const &item : _currentState->SubscriptionHash)
-		subscriptionList.emplace_back(item.second);
+	auto subscriptionList = to_vector(_currentState->SubscriptionHash | map_values);
 	auto subscribeChanges = CalculateSubscribeChanges(subscriptionList, portfolioIdBySubscriptionId);
 
 	//NOTE: up to this point the code can just fail and it will make no changes to objects used by the 
