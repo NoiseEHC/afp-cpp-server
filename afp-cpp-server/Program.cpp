@@ -7,7 +7,8 @@
 #include <conio.h>
 #include <stdexcept>
 #include <unordered_set>
-#include "Range.h"
+#include "range.h"
+#include "flatten_iterator.h"
 
 using namespace std;
 using namespace boost::adaptors;
@@ -16,6 +17,15 @@ Program::Program() :
 	_currentState(make_shared<GlobalState>(GlobalState{ {}, {} })),
 	_fakeConnections([this](string const &stockId, double newBuyPrice, double newSellPrice) { ProcessUpdate(stockId, newBuyPrice, newSellPrice); })
 {
+	vector<vector<int>> a{ {}, { 1,2,3 },{},{ 4 },{},{} ,{5,6,7} };
+	auto b = a | transformed([](auto const &x) { return x; });
+	auto c = b | transformed([](auto const &x) { return x; });
+	auto it = boost::iterators::make_begin(c);
+	auto en = boost::iterators::make_end(c);
+	while (it != en) {
+		cout << *it << endl;
+		++it;
+	}
 }
 
 void Program::Run()

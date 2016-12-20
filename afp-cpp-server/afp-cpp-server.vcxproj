@@ -152,6 +152,7 @@
     <ClInclude Include="Config.h" />
     <ClInclude Include="FakeMarketData.h" />
     <ClInclude Include="flattened.h" />
+    <ClInclude Include="flatten_iterator.h" />
     <ClInclude Include="Portfolio.h" />
     <ClInclude Include="Price.h" />
     <ClInclude Include="Program.h" />
